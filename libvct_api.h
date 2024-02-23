@@ -221,9 +221,9 @@ typedef struct vct_Head {
     /* Plane coordinate units, M represents meters, D represents latitude and
      * longitude. When the coordinate type is Cartesian coordinate system or
      * projected coordinate system, the default is M. When the coordinate type
-     * is the geodetic coordinate system, the default is D.*/
-    vct_CHAR xy_unit;
-    /* Z coordinate axis direction, default is M.*/
+     * is the geodetic coordinate system, the default is D.
+     * Z coordinate axis direction, default is M. */
+    vct_CHAR     xy_unit;
     vct_CHAR     z_uint;
     vct_CHAR     spheroid[512];
     vct_CHAR     prime_meridian[512];
@@ -280,12 +280,12 @@ typedef struct vct_SubLine {
 } vct_SubLine;
 
 typedef struct vct_Line {
-    vct_U64      bsm;
-    vct_CHAR     feature_code[12];
-    vct_CHAR     graphical_presentation_code[128];
-    vct_U8       eigenvalues;
-    vct_U32      line_size;
-    vct_SubLine *lines;
+    vct_U64       bsm;
+    vct_CHAR      feature_code[12];
+    vct_CHAR      graphical_presentation_code[128];
+    vct_U8        eigenvalues;
+    vct_U32       line_size;
+    vct_SubLine **lines;
 } vct_Line;
 
 typedef struct vct_PathLine {
