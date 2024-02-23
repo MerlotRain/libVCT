@@ -52,6 +52,7 @@
     "vec2s": "cpp",
     "vec2ub": "cpp",
     "vec2ui": "cpp",
-    "vec2us": "cpp"
+    "vec2us": "cpp",
+    "libvct_api.h": "c"
   }
 }

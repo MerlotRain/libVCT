@@ -89,6 +89,13 @@ typedef int                vct_TIME;
 /*                    VCT important macros and enumerations                   */
 /* -------------------------------------------------------------------------- */
 
+/* ----------------------------- VCT error code ----------------------------- */
+#define VCT_ERROR          0
+#define VCT_SUCCESS        1
+#define VCT_OPENFILE_ERROR -1
+#define VCT_READ_ERROR     -2
+#define VCT_WRITE_ERROR    -3
+
 /* ------------------------------- VCT Version ------------------------------ */
 #define VCT_VERSION_1 1
 #define VCT_VERSION_2 2
@@ -198,7 +205,34 @@ typedef vct_U32 vct_RGB;
 /* -------------------------------------------------------------------------- */
 
 /* ------------------------------- Head Begin ------------------------------- */
+
+/* Expand coordinate units, write extended unit information when XYUnit or ZUnit
+ * values do not meet standard values */
+typedef struct vct_head_unit {
+    vct_CHAR name[256]; /* Unit name */
+    vct_CHAR type;      /* Unit type, 'L' or 'A' */
+    vct_F64  factor;    /* The ratio factor to standard units (standard units
+                           for length are meters, standard units for longitude
+                           and latitude are degrees), for example, the unit
+                           factor for kilometers is 1000*/
+} vct_head_unit;
+
+/* Reference ellipsoid information */
+typedef struct vct_head_spheroid {
+    vct_CHAR name[128];  /* reference ellipsoid name */
+    vct_F64  major_axis; /* major axis */
+    vct_F64  flatness;   /* reciprocal of flatness*/
+} vct_head_spheroid;
+
+/* Prime meridian information */
+typedef struct vct_head_prime_meridian {
+    vct_CHAR name[64];           /* basis meridian name */
+    vct_F64  greenwich_meridian; /* The deviation between the Prime Meridian
+                                    and the Greenwich Meridian is consider
+                                    positive to the east.*/
+} vct_head_prime_meridian;
 typedef struct vct_Head {
+
     vct_CHAR data_mark[12]; /* CNSDTF-VCT */
     vct_U8   version;
     /* Coordinate system type. 'C' represents the Cartesian coordinate system,
@@ -223,31 +257,25 @@ typedef struct vct_Head {
      * projected coordinate system, the default is M. When the coordinate type
      * is the geodetic coordinate system, the default is D.
      * Z coordinate axis direction, default is M. */
-    vct_CHAR     xy_unit;
-    vct_CHAR     z_uint;
-    vct_CHAR     spheroid[512];
-    vct_CHAR     prime_meridian[512];
-    vct_CHAR     projection[256];
-    vct_CHAR     parameters[512];
-    vct_CHAR     vertical_datum[256];
-    vct_CHAR     temporal_reference_system[256];
-    vct_F64      extent_min[2];
-    vct_F64      extent_max[2];
-    vct_I32      map_scale;
-    vct_F64      offset;
-    vct_DATETIME date;
-    vct_CHAR    *separator;
+    vct_CHAR xy_unit;
+    vct_CHAR z_uint;
+    /* Reference ellipsoid. The unit of the major half axis is meters. When the
+     * coordinate system type is Cartesian, there is no need to specify the
+     * reference ellipsoid*/
+    vct_head_spheroid       spheroid;
+    vct_head_prime_meridian prime_meridian;
+    vct_CHAR                projection[256];
+    vct_F64                 parameters[11];
+    vct_CHAR                vertical_datum[256];
+    vct_CHAR                temporal_reference_system[256];
+    vct_F64                 extent_min[2];
+    vct_F64                 extent_max[2];
+    vct_I32                 map_scale;
+    vct_F64                 offset;
+    vct_DATETIME            date;
+    vct_CHAR               *separator;
+    vct_head_unit          *extend_units;
 } vct_Head;
-
-/* --------------------------- Feature Code Begin --------------------------- */
-typedef struct vct_FeatureCode {
-    vct_CHAR         feature_code[12];
-    vct_CHAR         feature_name[36];
-    vct_GeometryType type;
-    vct_CHAR         attr_table_name[36];
-    vct_U32          user_data_size;
-    vct_CHAR       **user_data;
-} vct_FeatureCode;
 
 /* -------------------------- Table Structure Begin ------------------------- */
 typedef struct vct_TableField {
@@ -258,9 +286,15 @@ typedef struct vct_TableField {
 } vct_TableField;
 
 typedef struct vct_TableStructure {
-    vct_CHAR        table_name[36];
-    vct_U32         field_size;
-    vct_TableField *fields;
+    vct_CHAR         feature_code[12];
+    vct_CHAR         feature_name[36];
+    vct_GeometryType type;
+    vct_CHAR         attr_table_name[36];
+    vct_CHAR         table_name[36];
+    vct_U32          field_size;
+    vct_TableField  *fields;
+    vct_U32          user_data_size;
+    vct_CHAR       **user_data;
 } vct_TableStructure;
 
 /* ------------------------------- Point Begin ------------------------------ */
@@ -322,36 +356,126 @@ typedef struct vct_CubicSpline {
     vct_F64 *point_coordinates;
 } vct_CubicSpline;
 
+typedef struct vct_bspline_node {
+    vct_F64 parameter;
+    vct_I32 factor;
+    vct_F64 weight;
+} vct_bspline_node;
 typedef struct vct_BSplineCurve {
-    vct_U8   line_type;
-    vct_U32  point_size;
-    vct_F64 *point_coordinates;
-    vct_U32  factor;
-    vct_U32  node_size;
-    struct node {
-        vct_F64 parameter;
-        vct_I32 factor;
-        vct_F64 weight;
-    };
-    struct node *nodes;
+    vct_U8            line_type;
+    vct_U32           point_size;
+    vct_F64          *point_coordinates;
+    vct_U32           factor;
+    vct_U32           node_size;
+    vct_bspline_node *nodes;
 } vct_BSplineCurve;
 
 typedef struct vct_BezierCurve {
-    vct_U8   line_type;
+    vct_U8           line_type;
+    vct_U32          point_size;
+    vct_F64         *point_coordinates;
+    vct_U32          factor;
+    vct_bspline_node nodes[2];
+} vct_BezierCurve;
+
+/* ------------------------------ Polygon Begin ----------------------------- */
+typedef struct vct_SubRing {
+    vct_U8 ring_type;
+} vct_SubRing;
+
+typedef struct vct_Polygon {
+    vct_U64       bsm;
+    vct_CHAR      feature_code[12];
+    vct_CHAR      graphical_presentation_code[128];
+    vct_U8        eigenvalues;
+    vct_U32       ring_size;
+    vct_SubRing **rings;
+} vct_Polygon;
+
+typedef struct vct_SingleRing {
+    vct_U8   ring_type;
     vct_U32  point_size;
     vct_F64 *point_coordinates;
-    vct_U32  factor;
-    struct node {
-        vct_F64 parameter;
-        vct_I32 factor;
-        vct_F64 weight;
-    };
-    struct node nodes[2];
-} vct_BezierCurve;
+} vct_SingleRing;
+
+typedef struct vct_Circle3P {
+    vct_U8  ring_type;
+    vct_F64 point_coordinates[9];
+} vct_Circle3P;
+
+typedef struct vct_Circle {
+    vct_U8  ring_type;
+    vct_F64 center[3];
+    vct_F64 radius;
+} vct_Circle;
+
+typedef struct vct_Ellipse {
+    vct_U8  ring_type;
+    vct_F64 center[3];
+    vct_F64 major_axis[3];
+    vct_F64 ratio;
+} vct_Ellipse;
+
+/* ---------------------------- Annotation Begin ---------------------------- */
+typedef struct vct_Annotation {
+    vct_U64  bsm;
+    vct_CHAR feature_code[12];
+    vct_CHAR graphical_presentation_code[128];
+    vct_U8   eigenvalues;
+    vct_CHAR text[256];
+    vct_U32  point_size;
+    vct_F64 *annotation_coord;
+} vct_Annotation;
 
 /* -------------------------------------------------------------------------- */
 /*                         VCT core data structure end                        */
 /* -------------------------------------------------------------------------- */
+
+/* ------------------------------- VCT reader ------------------------------- */
+typedef struct vct_Reader vct_Reader;
+VCT_API vct_I32           vct_create_read(vct_Reader *r, const char *filepath);
+VCT_API vct_I32           vct_destroy_read(vct_Reader *r);
+VCT_API vct_I32           vct_read_head(const vct_Reader *r, vct_Head **head);
+VCT_API vct_I32           vct_read_tables(const vct_Reader    *r,
+                                          vct_U32             *size,
+                                          vct_TableStructure **table);
+VCT_API vct_I32 vct_read_point(const vct_Reader *r, vct_Point **point);
+VCT_API vct_I32 vct_read_line(const vct_Reader *r, vct_Line **line);
+VCT_API vct_I32 vct_read_polygon(const vct_Reader *r, vct_Polygon **polygon);
+VCT_API vct_I32 vct_read_annotation(const vct_Reader *r,
+                                    vct_Annotation  **annotation);
+VCT_API vct_I32 vct_read_attribute(const vct_Reader *r,
+                                   const void       *geometry,
+                                   vct_U32          *size,
+                                   vct_CHAR        **attribute);
+
+/* ------------------------------- VCT writer ------------------------------- */
+typedef struct vct_Writer vct_Writer;
+
+VCT_API vct_I32 vct_create_writer(vct_Writer **w, const char *filepath);
+VCT_API vct_I32 vct_destroy_writer(vct_Writer *w);
+VCT_API vct_I32 vct_write_head(const vct_Writer *w, const vct_Head *head);
+VCT_API vct_I32 vct_write_tables(const vct_Writer   *w,
+                                 vct_U32             size,
+                                 vct_TableStructure *table);
+VCT_API vct_I32 vct_begin_write_point(const vct_Writer *w);
+VCT_API vct_I32 vct_end_write_point(const vct_Writer *w);
+VCT_API vct_I32 vct_write_point(const vct_Writer *w, const vct_Point *point);
+
+VCT_API vct_I32 vct_begin_write_line(const vct_Writer *w);
+VCT_API vct_I32 vct_end_write_line(const vct_Writer *w);
+VCT_API vct_I32 vct_write_line(const vct_Writer *w, const vct_Line *line);
+
+VCT_API vct_I32 vct_begin_write_polygon(const vct_Writer *w);
+VCT_API vct_I32 vct_end_write_polygon(const vct_Writer *w);
+VCT_API vct_I32 vct_write_polygon(const vct_Writer  *w,
+                                  const vct_Polygon *polygon);
+VCT_API vct_I32 vct_begin_write_annotation(const vct_Writer *w);
+VCT_API vct_I32 vct_end_write_annotation(const vct_Writer *w);
+VCT_API vct_I32 vct_write_annotation(const vct_Writer     *w,
+                                     const vct_Annotation *annotation);
+VCT_API vct_I32 vct_begin_write_attribute(const vct_Writer *w);
+VCT_API vct_I32 vct_end_write_attribute(const vct_Writer *w);
 
 /* -------------------------------------------------------------------------- */
 /*                             VCT helper function                            */
