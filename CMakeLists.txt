@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.18)
 
-project(LIBVCT LANGUAGE C)
+project(LIBVCT LANGUAGES C)
+set(ROOT_DIR "${PROJECT_SOURCE_DIR}")
+
+# Define the version string
 set(LIBVCT_API_VERSION_STRING "3.0.1" CACHE STRING "LibVCT version" FORCE)
+
+
+include(${ROOT_DIR}/cmake/common.cmake NO_POLICY_SCOPE)
 
 #
 # Extract the pieces of the version info from the version string above
